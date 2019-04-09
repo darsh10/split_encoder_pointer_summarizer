@@ -9,7 +9,7 @@ import torch
 from model import Model
 from torch.nn.utils import clip_grad_norm_
 
-from torch.optim import Adagrad
+from torch.optim import Adagrad, Adam
 
 from data_util import config
 from data_util.batcher import Batcher
@@ -54,7 +54,7 @@ class Train(object):
         params = list(self.model.encoder.parameters()) + list(self.model.decoder.parameters()) + \
                  list(self.model.reduce_state.parameters())
         initial_lr = config.lr_coverage if config.is_coverage else config.lr
-        self.optimizer = Adagrad(params, lr=initial_lr, initial_accumulator_value=config.adagrad_init_acc)
+        self.optimizer = Adam(params, lr=initial_lr)#Adagrad(params, lr=initial_lr, initial_accumulator_value=config.adagrad_init_acc)
 
         start_iter, start_loss = 0, 0
 
@@ -74,30 +74,58 @@ class Train(object):
         return start_iter, start_loss
 
     def train_one_batch(self, batch):
-        enc_batch, enc_padding_mask, enc_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage = \
+        enc_batch_list, enc_padding_mask_list, enc_lens_list, enc_batch_extend_vocab_list, extra_zeros_list, c_t_1_list, coverage_list = \
             get_input_from_batch(batch, use_cuda)
         dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
             get_output_from_batch(batch, use_cuda)
 
         self.optimizer.zero_grad()
 
-        encoder_outputs, encoder_feature, encoder_hidden = self.model.encoder(enc_batch, enc_lens)
-        s_t_1 = self.model.reduce_state(encoder_hidden)
+        encoder_outputs_list = []
+        encoder_feature_list = []
+        s_t_1 = None
+        s_t_1_0 = None
+        s_t_1_1 = None
+        for enc_batch,enc_lens in zip(enc_batch_list, enc_lens_list):
+            sorted_indices = sorted(range(len(enc_lens)),key=enc_lens.__getitem__)
+            sorted_indices.reverse()
+            inverse_sorted_indices = [-1 for _ in range(len(sorted_indices))]
+            for index,position in enumerate(sorted_indices):
+                inverse_sorted_indices[position] = index
+            sorted_enc_batch = torch.index_select(enc_batch, 0, torch.LongTensor(sorted_indices) if not use_cuda else torch.LongTensor(sorted_indices).cuda())
+            sorted_enc_lens = enc_lens[sorted_indices]
+            sorted_encoder_outputs, sorted_encoder_feature, sorted_encoder_hidden = self.model.encoder(sorted_enc_batch, sorted_enc_lens)
+            encoder_outputs = torch.index_select(sorted_encoder_outputs, 0, torch.LongTensor(inverse_sorted_indices) if not use_cuda else torch.LongTensor(inverse_sorted_indices).cuda())
+            encoder_feature = torch.index_select(sorted_encoder_feature.view(encoder_outputs.shape), 0, torch.LongTensor(inverse_sorted_indices) if not use_cuda else torch.LongTensor(inverse_sorted_indices).cuda()).view(sorted_encoder_feature.shape)
+            encoder_hidden = tuple([torch.index_select(sorted_encoder_hidden[0], 1, torch.LongTensor(inverse_sorted_indices) if not use_cuda else torch.LongTensor(inverse_sorted_indices).cuda()), torch.index_select(sorted_encoder_hidden[1], 1, torch.LongTensor(inverse_sorted_indices) if not use_cuda else torch.LongTensor(inverse_sorted_indices).cuda())])
+            #encoder_outputs, encoder_feature, encoder_hidden = self.model.encoder(enc_batch, enc_lens)
+            encoder_outputs_list.append(encoder_outputs)
+            encoder_feature_list.append(encoder_feature)
+            if s_t_1 is None:
+                s_t_1 = self.model.reduce_state(encoder_hidden)
+                s_t_1_0, s_t_1_1 = s_t_1
+            else:
+                s_t_1_new = self.model.reduce_state(encoder_hidden)
+                s_t_1_0 = s_t_1_0 + s_t_1_new[0]
+                s_t_1_1 = s_t_1_1 + s_t_1_new[1]
+            s_t_1 = tuple([s_t_1_0, s_t_1_1])
+
+        #c_t_1_list = [c_t_1]
+        #coverage_list = [coverage]
 
         step_losses = []
         for di in range(min(max_dec_len, config.max_dec_steps)):
             y_t_1 = dec_batch[:, di]  # Teacher forcing
-            final_dist, s_t_1,  c_t_1, attn_dist, p_gen, next_coverage = self.model.decoder(y_t_1, s_t_1,
-                                                        encoder_outputs, encoder_feature, enc_padding_mask, c_t_1,
-                                                        extra_zeros, enc_batch_extend_vocab,
-                                                                           coverage, di)
+            final_dist, s_t_1,  c_t_1_list, attn_dist_list, p_gen, next_coverage_list = self.model.decoder(y_t_1, s_t_1, encoder_outputs_list, encoder_feature_list, enc_padding_mask_list, c_t_1_list, extra_zeros_list, enc_batch_extend_vocab_list, coverage_list, di)
             target = target_batch[:, di]
             gold_probs = torch.gather(final_dist, 1, target.unsqueeze(1)).squeeze()
             step_loss = -torch.log(gold_probs + config.eps)
             if config.is_coverage:
-                step_coverage_loss = torch.sum(torch.min(attn_dist, coverage), 1)
+                step_coverage_loss = 0.0
+                for ind in range(len(coverage_list)):
+                    step_coverage_loss += torch.sum(torch.min(attn_dist_list[ind], coverage_list[ind]), 1)
+                    coverage_list[ind] = next_coverage_list[ind]
                 step_loss = step_loss + config.cov_loss_wt * step_coverage_loss
-                coverage = next_coverage
                 
             step_mask = dec_padding_mask[:, di]
             step_loss = step_loss * step_mask
@@ -129,12 +157,12 @@ class Train(object):
 
             if iter % 100 == 0:
                 self.summary_writer.flush()
-            print_interval = 1000
+            print_interval = 500
             if iter % print_interval == 0:
                 print('steps %d, seconds for %d batch: %.2f , loss: %f' % (iter, print_interval,
                                                                            time.time() - start, loss))
                 start = time.time()
-            if iter % 5000 == 0:
+            if iter % 500 == 0:
                 self.save_model(running_avg_loss, iter)
 
 if __name__ == '__main__':

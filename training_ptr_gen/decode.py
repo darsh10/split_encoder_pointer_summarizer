@@ -78,9 +78,11 @@ class BeamSearch(object):
 
             # Extract the output ids from the hypothesis and convert back to words
             output_ids = [int(t) for t in best_summary.tokens[1:]]
+            output_ids = [x if x<len(self.vocab.word_to_id) else 0 for x in output_ids]
+            if len(batch.art_oovs) == 0:
+                batch.art_oovs = [None]
             decoded_words = data.outputids2words(output_ids, self.vocab,
                                                  (batch.art_oovs[0] if config.pointer_gen else None))
-
             # Remove the [STOP] token from decoded_words, if necessary
             try:
                 fst_stop_idx = decoded_words.index(data.STOP_DECODING)
@@ -89,6 +91,7 @@ class BeamSearch(object):
                 decoded_words = decoded_words
 
             original_abstract_sents = batch.original_abstracts_sents[0]
+            print(original_abstract_sents, decoded_words)
 
             write_for_rouge(original_abstract_sents, decoded_words, counter,
                             self._rouge_ref_dir, self._rouge_dec_dir)
@@ -107,22 +110,54 @@ class BeamSearch(object):
 
     def beam_search(self, batch):
         #batch should have only one example
-        enc_batch, enc_padding_mask, enc_lens, enc_batch_extend_vocab, extra_zeros, c_t_0, coverage_t_0 = \
+        enc_batch_list, enc_padding_mask_list, enc_lens_list, enc_batch_extend_vocab_list, extra_zeros_list, c_t_0_list, coverage_t_0_list = \
             get_input_from_batch(batch, use_cuda)
 
-        encoder_outputs, encoder_feature, encoder_hidden = self.model.encoder(enc_batch, enc_lens)
-        s_t_0 = self.model.reduce_state(encoder_hidden)
+        encoder_outputs_list = []
+        encoder_feature_list = []
+        s_t_1 = None
+        s_t_1_0 = None
+        s_t_1_1 = None
+        for enc_batch,enc_lens in zip(enc_batch_list, enc_lens_list):
+            sorted_indices = sorted(range(len(enc_lens)),key=enc_lens.__getitem__)
+            sorted_indices.reverse()
+            inverse_sorted_indices = [-1 for _ in range(len(sorted_indices))]
+            for index,position in enumerate(sorted_indices):
+                inverse_sorted_indices[position] = index
+            sorted_enc_batch = torch.index_select(enc_batch, 0, torch.LongTensor(sorted_indices) if not use_cuda       else torch.LongTensor(sorted_indices).cuda())
+            sorted_enc_lens = enc_lens[sorted_indices]
+            sorted_encoder_outputs, sorted_encoder_feature, sorted_encoder_hidden = self.model.encoder(sorted_enc_batch, sorted_enc_lens)
+            encoder_outputs = torch.index_select(sorted_encoder_outputs, 0, torch.LongTensor(inverse_sorted_indices) if not use_cuda else torch.LongTensor(inverse_sorted_indices).cuda())
+            encoder_feature = torch.index_select(sorted_encoder_feature.view(encoder_outputs.shape), 0, torch.LongTensor(inverse_sorted_indices) if not use_cuda else torch.LongTensor(inverse_sorted_indices).cuda()).view(sorted_encoder_feature.shape)
+            encoder_hidden = tuple([torch.index_select(sorted_encoder_hidden[0], 1, torch.LongTensor(inverse_sorted_indices) if not use_cuda else torch.LongTensor(inverse_sorted_indices).cuda()), torch.index_select(sorted_encoder_hidden[1], 1, torch.LongTensor(inverse_sorted_indices) if not use_cuda else torch.LongTensor(inverse_sorted_indices).cuda())])
+            encoder_outputs_list.append(encoder_outputs)
+            encoder_feature_list.append(encoder_feature)
+            if s_t_1 is None:
+                s_t_1 = self.model.reduce_state(encoder_hidden)
+                s_t_1_0, s_t_1_1 = s_t_1
+            else:
+                s_t_1_new = self.model.reduce_state(encoder_hidden)
+                s_t_1_0 = s_t_1_0 + s_t_1_new[0]
+                s_t_1_1 = s_t_1_1 + s_t_1_new[1]
+            s_t_1 = tuple([s_t_1_0, s_t_1_1])
 
-        dec_h, dec_c = s_t_0 # 1 x 2*hidden_size
+
+        #encoder_outputs, encoder_feature, encoder_hidden = self.model.encoder(enc_batch, enc_lens)
+        #s_t_0 = self.model.reduce_state(encoder_hidden)
+
+        dec_h, dec_c = s_t_1 # 1 x 2*hidden_size
         dec_h = dec_h.squeeze()
         dec_c = dec_c.squeeze()
+
+        c_t_0 = c_t_0_list[0] + c_t_0_list[1]
 
         #decoder batch preparation, it has beam_size example initially everything is repeated
         beams = [Beam(tokens=[self.vocab.word2id(data.START_DECODING)],
                       log_probs=[0.0],
                       state=(dec_h[0], dec_c[0]),
                       context = c_t_0[0],
-                      coverage=(coverage_t_0[0] if config.is_coverage else None))
+                      #coverage=(coverage_t_0[0] if config.is_coverage else None))
+                      coverage=None)
                  for _ in xrange(config.beam_size)]
         results = []
         steps = 0
@@ -155,9 +190,9 @@ class BeamSearch(object):
                     all_coverage.append(h.coverage)
                 coverage_t_1 = torch.stack(all_coverage, 0)
 
-            final_dist, s_t, c_t, attn_dist, p_gen, coverage_t = self.model.decoder(y_t_1, s_t_1,
-                                                        encoder_outputs, encoder_feature, enc_padding_mask, c_t_1,
-                                                        extra_zeros, enc_batch_extend_vocab, coverage_t_1, steps)
+            c_t_1_list = [c_t_1,c_t_1]
+            coverage_t_1_list = [None,None]
+            final_dist, s_t, c_t_list, attn_dist_list, p_gen, coverage_t_list = self.model.decoder(y_t_1, s_t_1, encoder_outputs_list, encoder_feature_list, enc_padding_mask_list, c_t_1_list, extra_zeros_list, enc_batch_extend_vocab_list, coverage_t_1_list, steps)
 
             topk_log_probs, topk_ids = torch.topk(final_dist, config.beam_size * 2)
 
@@ -170,8 +205,8 @@ class BeamSearch(object):
             for i in xrange(num_orig_beams):
                 h = beams[i]
                 state_i = (dec_h[i], dec_c[i])
-                context_i = c_t[i]
-                coverage_i = (coverage_t[i] if config.is_coverage else None)
+                context_i = c_t_list[0][i] + c_t_list[1][i]
+                coverage_i = None#(coverage_t[i] if config.is_coverage else None)
 
                 for j in xrange(config.beam_size * 2):  # for each of the top 2*beam_size hyps:
                     new_beam = h.extend(token=topk_ids[i, j].item(),

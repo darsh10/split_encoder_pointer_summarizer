@@ -21,6 +21,7 @@ STOP_DECODING = '[STOP]' # This has a vocab id, which is used at the end of untr
 class Vocab(object):
 
   def __init__(self, vocab_file, max_size):
+    self.word_to_id = {}
     self._word_to_id = {}
     self._id_to_word = {}
     self._count = 0 # keeps track of total number of words in the Vocab
@@ -51,6 +52,8 @@ class Vocab(object):
           break
 
     print "Finished constructing vocabulary of %i total words. Last word added: %s" % (self._count, self._id_to_word[self._count-1])
+    self.word_to_id = self._word_to_id
+
 
   def word2id(self, word):
     if word not in self._word_to_id:

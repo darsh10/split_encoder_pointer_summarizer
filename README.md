@@ -1,5 +1,7 @@
 PyTorch implementation of *[Automatic Fact-guided Sentence Modification](https://arxiv.org/pdf/1909.13838.pdf)* (AAAI 2020).
 
+This repository implements the split encoder pointer generator module of our method.
+
 
 The code for the Masker is [here](https://github.com/TalSchuster/TokenMasker).
 

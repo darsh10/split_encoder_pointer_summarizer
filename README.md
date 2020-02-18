@@ -45,3 +45,16 @@ Evaluation:
 </code></p>
 
 This will generate the corresponding outputs for the desired eval file (specified in the validation path).
+
+______________________________________________________________________________________________________________________________
+
+If you find this repository helpful, please cite our paper:
+```
+@inproceedings{shah2020automatic,
+  title={Automatic Fact-guided Sentence Modification},
+  author={Darsh J Shah and Tal Schuster and Regina Barzilay},
+  booktitle={Association for the Advancement of Artificial Intelligence ({AAAI})},
+  year={2020},
+  url={https://arxiv.org/pdf/1909.13838.pdf}
+}
+```

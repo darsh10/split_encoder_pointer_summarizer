@@ -4,12 +4,16 @@ pytorch implementation of *[Automatic Fact-guided Sentence Modification](https:/
 Repository cloned and updated from https://github.com/atulkum/pointer_summarizer.
 
 
+
 Note:
 * It is tested on pytorch 0.4 with python 2.7
 
-Training the Model:*
+
+
+Training the Model:
 
 export PYTHONPATH=`pwd`
+
 python training_ptr_gen/train.py
 
 

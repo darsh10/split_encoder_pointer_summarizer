@@ -40,3 +40,5 @@ Evaluation:
 
   python training_ptr_gen/eval.py _path_of_model_checkpoint
 </code></p>
+
+This will generate the corresponding outputs for the desired eval file (specified in the validation path).

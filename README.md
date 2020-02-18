@@ -26,7 +26,7 @@ Dataset:
 
 The dataset for training this model can be found here https://drive.google.com/open?id=1aOMEUksFpZwJDtQcgsrJ0rjC7nO2J1kr.
 
-(Download and upload the config file accordingly)
+(Download and edit the config file to the path of the train, val, test and vocab files.)
 
 
 ______________________________________________________________________________________________________________________________

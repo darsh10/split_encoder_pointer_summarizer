@@ -1,4 +1,4 @@
-PyTorch implementation of *[Automatic Fact-guided Sentence Modification](https://arxiv.org/pdf/1909.13838.pdf)*
+PyTorch implementation of *[Automatic Fact-guided Sentence Modification](https://arxiv.org/pdf/1909.13838.pdf) (AAAI 2020).
 
 
 The code for the Masker is here (https://github.com/TalSchuster/TokenMasker).

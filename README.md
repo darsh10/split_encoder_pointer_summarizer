@@ -8,7 +8,7 @@ Repository cloned and updated from https://github.com/atulkum/pointer_summarizer
 Note:
 * It is tested on pytorch 0.4 with python 2.7
 
-
+______________________________________________________________________________________________________________________________
 
 Training the Model:
 
@@ -17,6 +17,11 @@ export PYTHONPATH=`pwd`
 python training_ptr_gen/train.py
 
 
+______________________________________________________________________________________________________________________________
+
 
 Dataset:
+
 The dataset for training this model can be found here https://drive.google.com/open?id=1aOMEUksFpZwJDtQcgsrJ0rjC7nO2J1kr.
+
+(Download and upload the config file accordingly)

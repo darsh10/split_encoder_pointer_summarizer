@@ -1,5 +1,7 @@
-pytorch implementation of *[Automatic Fact-guided Sentence Modification](https://arxiv.org/pdf/1909.13838.pdf)*
+PyTorch implementation of *[Automatic Fact-guided Sentence Modification](https://arxiv.org/pdf/1909.13838.pdf)*
 
+
+______________________________________________________________________________________________________________________________
 
 Repository cloned and updated from https://github.com/atulkum/pointer_summarizer.
 

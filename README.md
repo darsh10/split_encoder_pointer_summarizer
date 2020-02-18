@@ -1,6 +1,9 @@
 PyTorch implementation of *[Automatic Fact-guided Sentence Modification](https://arxiv.org/pdf/1909.13838.pdf)*
 
 
+The code for the Masker is here (https://github.com/TalSchuster/TokenMasker).
+
+
 ______________________________________________________________________________________________________________________________
 
 Repository cloned and updated from https://github.com/atulkum/pointer_summarizer.

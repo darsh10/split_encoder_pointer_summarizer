@@ -1,7 +1,7 @@
 PyTorch implementation of *[Automatic Fact-guided Sentence Modification](https://arxiv.org/pdf/1909.13838.pdf)* (AAAI 2020).
 
 
-The code for the Masker is here (https://github.com/TalSchuster/TokenMasker).
+The code for the Masker is [here](https://github.com/TalSchuster/TokenMasker).
 
 
 ______________________________________________________________________________________________________________________________
@@ -19,7 +19,6 @@ Training the Model:
 
 <p><code>
   export PYTHONPATH=`pwd`
-
   python training_ptr_gen/train.py
 </code></p>
 
@@ -40,7 +39,6 @@ Evaluation:
 
 <p><code>
   export PYTHONPATH=`pwd`
-
   python training_ptr_gen/eval.py _path_of_model_checkpoint
 </code></p>
 

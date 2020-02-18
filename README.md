@@ -17,11 +17,9 @@ ________________________________________________________________________________
 
 Training the Model:
 
-<p><code>
-  export PYTHONPATH=`pwd`
+```  export PYTHONPATH=`pwd` 
   python training_ptr_gen/train.py
-</code></p>
-
+```
 
 ______________________________________________________________________________________________________________________________
 
@@ -38,7 +36,7 @@ ________________________________________________________________________________
 Evaluation:
 
 <p><code>
-  export PYTHONPATH=`pwd`
+  export PYTHONPATH=`pwd` &&
   python training_ptr_gen/eval.py _path_of_model_checkpoint
 </code></p>
 

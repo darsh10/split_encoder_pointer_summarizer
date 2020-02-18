@@ -7,7 +7,7 @@ train_data_path = "/dataset_path/chunked/train_*"
 eval_data_path = "/dataset_path/finished_files/val.bin"
 decode_data_path = "/dataset_path/finished_files/test.bin"
 vocab_path = "/dataset_path/finished_files/vocab"
-log_root = "/dataset_path/pointer_summarizer"
+log_root = "/log_path/pointer_summarizer"
 
 # Hyperparameters
 hidden_dim= 256

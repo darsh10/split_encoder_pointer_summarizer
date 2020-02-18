@@ -33,6 +33,6 @@ ________________________________________________________________________________
 
 Evaluation:
 
-`export PYTHONPATH=`pwd``
+"export PYTHONPATH=`pwd`"
 
-`python training_ptr_gen/eval.py _path_of_model_checkpoint`
+python training_ptr_gen/eval.py _path_of_model_checkpoint

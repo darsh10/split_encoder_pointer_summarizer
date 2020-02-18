@@ -27,3 +27,12 @@ Dataset:
 The dataset for training this model can be found here https://drive.google.com/open?id=1aOMEUksFpZwJDtQcgsrJ0rjC7nO2J1kr.
 
 (Download and upload the config file accordingly)
+
+
+______________________________________________________________________________________________________________________________
+
+Evaluation:
+
+export PYTHONPATH=`pwd`
+
+python training_ptr_gen/eval.py _path_of_model_checkpoint
